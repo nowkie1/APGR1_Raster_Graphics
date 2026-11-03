@@ -1,0 +1,33 @@
+//Displays the drawn pixel image directly inside the window frame.
+package view;
+
+import model.raster.Raster;
+import model.raster.RasterBI;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class Panel extends JPanel {
+
+    private RasterBI raster;
+
+    // package-protected constructor
+    Panel(int w, int h) {
+        setPreferredSize(new Dimension(w, h));
+        raster = new RasterBI(w, h);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+
+        g.drawImage(raster.getImage(), 0, 0, null);
+        //raster.clear();
+
+
+    }
+
+    public Raster getRaster() {
+        return raster;
+    }
+}
