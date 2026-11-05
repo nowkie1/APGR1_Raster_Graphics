@@ -28,5 +28,14 @@ public abstract class Liner {
         rasterize(line.p1().x(), line.p1().y(), line.p2().x(), line.p2().y());
     }
 
+    public void drawLine(Point a, Point b, int color) {
+        int previousColor = this.color;
+
+        this.color = color;
+        rasterize(a.x(), a.y(), b.x(), b.y());
+
+        this.color = previousColor;
+    }
+
 
 }

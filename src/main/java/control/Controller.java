@@ -4,7 +4,7 @@ package control;
 import model.objects.Line;
 import model.objects.Point;
 import model.objects.Polygon;
-import model.raster.BresenhamLiner;
+import model.objects.PolygonClipper;
 import model.raster.GraphicsLiner;
 import model.raster.Liner;
 import model.raster.PolygonRasterizer;
@@ -25,15 +25,21 @@ import java.util.List;
 public class Controller {
 
     private enum Mode {
-        LINE, POLYGON, FILL
+        LINE, POLYGON, FILL, CLIPPING
     }
 
 
     private final Panel panel;
-    private Liner liner;
+    private final Liner liner;
     private final PolygonRasterizer polygonRasterizer;
     private final SeedFill seedFill;
     private final ScanLine scanLine;
+
+    private final PolygonClipper polygonClipper = new PolygonClipper();
+
+    private Polygon currentClipPolygon = new Polygon();
+    private Polygon clippedResult = new Polygon();
+    private Polygon clippingBoundary = new Polygon();
 
     private Mode mode = Mode.LINE;
     private Point startPoint;
@@ -45,6 +51,11 @@ public class Controller {
     private final List<FillOperation> fills = new ArrayList<>();
     private boolean boundaryMode = false;
     private boolean scanLineEnabled = false;
+
+    private static final int SEED_FILL_COLOR = 0x00FF00;
+    private static final int SCAN_LINE_COLOR = 0x00BFFF;
+    private static final int CLIPPED_RESULT_COLOR = 0xFF9500;
+    private static final int CLIPPING_BOUNDARY_COLOR = 0xFFFF00;
 
     private record FillOperation(
             Point seed,
@@ -67,17 +78,7 @@ public class Controller {
     }
 
     private void initObjects() {
-        //this.liner = new BresenhamLiner(panel.getRaster());
         this.startPoint = null;
-        // Test lines from assignment README:
-//        liner.drawLine(new Point(50, 200), new Point(200, 50));   // l1
-//        liner.drawLine(new Point(300, 50), new Point(450, 200));  // l2
-//        liner.drawLine(new Point(200, 350), new Point(50, 500));  // l3
-//        liner.drawLine(new Point(450, 500), new Point(300, 350)); // l4
-//        liner.drawLine(new Point(650, 50), new Point(650, 200));  // l5
-//        liner.drawLine(new Point(650, 350), new Point(650, 500)); // l6
-//        liner.drawLine(new Point(50, 550), new Point(300, 550));  // l7
-//        liner.drawLine(new Point(400, 550), new Point(650, 550)); // l8
         redraw();
         panel.repaint();
     }
@@ -92,7 +93,6 @@ public class Controller {
                     hardClear();
                     return;
                 }
-
                 if (SwingUtilities.isLeftMouseButton(e)) {
                     Point clickedPoint = new Point(e.getX(), e.getY());
 
@@ -105,9 +105,13 @@ public class Controller {
                     } else if (mode == Mode.FILL) {
                         fills.add(new FillOperation(
                                 clickedPoint,
-                                0x00FF00,
+                                SEED_FILL_COLOR,
                                 boundaryMode
                         ));
+                        redraw();
+                        panel.repaint();
+                    } else if (mode == Mode.CLIPPING) {
+                        currentClipPolygon.add(clickedPoint);
 
                         redraw();
                         panel.repaint();
@@ -205,15 +209,47 @@ public class Controller {
                         updateStatus();
                         break;
 
+
                     case KeyEvent.VK_ENTER:
-                        // Finalize the in-progress polygon
-                        if (currentPolygon.size() >= 3) {
-                            polygons.add(currentPolygon);
+
+                        if (mode == Mode.POLYGON) {
+                            // Save the regular polygon
+                            if (currentPolygon.size() >= 3) {
+                                polygons.add(currentPolygon);
+                            }
+
+                            currentPolygon = new Polygon();
+
+                        } else if (mode == Mode.CLIPPING) {
+                            // Clip the most recently saved polygon
+                            if (currentClipPolygon.size() >= 3
+                                    && !polygons.isEmpty()) {
+
+                                if (isConvex(currentClipPolygon)) {
+                                    Polygon subject = polygons.getLast();
+
+                                    clippedResult = polygonClipper.clip(
+                                            subject,
+                                            currentClipPolygon
+                                    );
+
+                                    clippingBoundary = currentClipPolygon;
+
+                                } else {
+                                    JOptionPane.showMessageDialog(
+                                            window,
+                                            "The clipping polygon must be convex!"
+                                    );
+                                }
+                            }
+
+                            currentClipPolygon = new Polygon();
                         }
-                        currentPolygon = new Polygon();
+
                         redraw();
                         panel.repaint();
                         break;
+
 
                     case KeyEvent.VK_F:
                         mode = Mode.FILL;
@@ -227,6 +263,14 @@ public class Controller {
 
                     case KeyEvent.VK_S:
                         scanLineEnabled = !scanLineEnabled;
+                        updateStatus();
+                        redraw();
+                        panel.repaint();
+                        break;
+
+                    case KeyEvent.VK_K:
+                        mode = Mode.CLIPPING;
+                        currentClipPolygon = new Polygon();
                         updateStatus();
                         redraw();
                         panel.repaint();
@@ -251,6 +295,39 @@ public class Controller {
         );
     }
 
+
+    private boolean isConvex(Polygon polygon) {
+        if (polygon.size() < 3) {
+            return false;
+        }
+
+        int direction = 0;
+
+        for (int i = 0; i < polygon.size(); i++) {
+            Point a = polygon.get(i);
+            Point b = polygon.get((i + 1) % polygon.size());
+            Point c = polygon.get((i + 2) % polygon.size());
+
+            long cross = (long) (b.x() - a.x()) * (c.y() - b.y())
+                    - (long) (b.y() - a.y()) * (c.x() - b.x());
+
+            if (cross == 0) {
+                continue;
+            }
+
+            int sign = cross > 0 ? 1 : -1;
+
+            if (direction == 0) {
+                direction = sign;
+            } else if (direction != sign) {
+                return false;
+            }
+        }
+
+        return direction != 0;
+    }
+
+
     private void redraw() {
         panel.getRaster().clear();
 
@@ -262,7 +339,7 @@ public class Controller {
         // 2. Draw saved polygons
         for (Polygon poly : polygons) {
             if(scanLineEnabled) {
-                scanLine.fillPolygon(poly, 0x00FF00);
+                scanLine.fillPolygon(poly, SCAN_LINE_COLOR);
             }
             polygonRasterizer.rasterize(poly);
         }
@@ -289,6 +366,22 @@ public class Controller {
                 );
             }
         }
+
+        // Draw the clipped polygon
+        if (clippedResult.size() >= 3) {
+            scanLine.fillPolygon(clippedResult, CLIPPED_RESULT_COLOR);
+            polygonRasterizer.rasterize(clippedResult);
+        }
+
+        // Show the completed clipping boundary in yellow
+        if (clippingBoundary.size() >= 3) {
+            polygonRasterizer.rasterize(clippingBoundary, CLIPPING_BOUNDARY_COLOR);
+        }
+
+        // Show the clipping polygon currently being drawn in yellow
+        if (mode == Mode.CLIPPING && currentClipPolygon.size() >= 2) {
+            polygonRasterizer.rasterize(currentClipPolygon, CLIPPING_BOUNDARY_COLOR);
+        }
     }
 
     private void hardClear() {
@@ -297,6 +390,10 @@ public class Controller {
         fills.clear();
         currentPolygon = new Polygon();
         startPoint = null;
+
+        currentClipPolygon = new Polygon();
+        clippingBoundary = new Polygon();
+        clippedResult = new Polygon();
 
         panel.getRaster().clear();
         panel.repaint();

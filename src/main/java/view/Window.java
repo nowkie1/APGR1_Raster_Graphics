@@ -26,7 +26,7 @@ public class Window extends JFrame {
                 "[L]\u00A0Line | [Shift]\u00A0Snap line | " +
                         "[P]\u00A0Polygon | [Enter]\u00A0Save current polygon | " +
                         "[F]\u00A0Fill polygon | [B]\u00A0Switch filling algorithm " +
-                        "[S]\u00A0Scan-line algorithm | [C]\u00A0Clear"
+                        "[S]\u00A0Scan-line algorithm | [K]\u00A0Clip polygon | [C]\u00A0Clear"
         );
 
         shortcutsLabel.setLineWrap(true);
