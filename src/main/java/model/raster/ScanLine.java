@@ -14,7 +14,7 @@ public class ScanLine {
         this.raster = raster;
     }
 
-    public void fillPolygon(Polygon polygon, int fillColor){
+    public void fillPolygon(Polygon polygon, PatternFill pattern){
 
         if(polygon.size() < 3) {
             return;
@@ -62,10 +62,14 @@ public class ScanLine {
                         (int) Math.floor(intersections.get(i + 1)));
 
                 for (int x = xStart; x <= xEnd; x++) {
-                    raster.setPixel(x, y, fillColor);
+                    raster.setPixel(x, y, pattern.getColor(x, y));
                 }
             }
         }
+    }
+
+    public void fillPolygon(Polygon polygon, int fillColor) {
+        fillPolygon(polygon, (x, y) -> fillColor);
     }
 
 }

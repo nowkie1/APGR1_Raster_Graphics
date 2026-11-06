@@ -5,11 +5,7 @@ import model.objects.Line;
 import model.objects.Point;
 import model.objects.Polygon;
 import model.objects.PolygonClipper;
-import model.raster.GraphicsLiner;
-import model.raster.Liner;
-import model.raster.PolygonRasterizer;
-import model.raster.SeedFill;
-import model.raster.ScanLine;
+import model.raster.*;
 import view.Panel;
 import view.Window;
 
@@ -51,6 +47,10 @@ public class Controller {
     private final List<FillOperation> fills = new ArrayList<>();
     private boolean boundaryMode = false;
     private boolean scanLineEnabled = false;
+    private boolean patternEnabled = false;
+
+    private final PatternFill checkerPattern =
+            new CheckerPattern(0x00BFFF, 0x004D80, 10);
 
     private static final int SEED_FILL_COLOR = 0x00FF00;
     private static final int SCAN_LINE_COLOR = 0x00BFFF;
@@ -108,6 +108,7 @@ public class Controller {
                                 SEED_FILL_COLOR,
                                 boundaryMode
                         ));
+
                         redraw();
                         panel.repaint();
                     } else if (mode == Mode.CLIPPING) {
@@ -276,6 +277,13 @@ public class Controller {
                         panel.repaint();
                         break;
 
+                    case KeyEvent.VK_T:
+                        patternEnabled = !patternEnabled;
+                        updateStatus();
+                        redraw();
+                        panel.repaint();
+                        break;
+
                     case KeyEvent.VK_C:
                         hardClear();
                         break;
@@ -291,7 +299,8 @@ public class Controller {
         window.updateStatus(
                 mode.name(),
                 algorithm,
-                scanLineEnabled
+                scanLineEnabled,
+                patternEnabled
         );
     }
 
@@ -338,9 +347,14 @@ public class Controller {
 
         // 2. Draw saved polygons
         for (Polygon poly : polygons) {
-            if(scanLineEnabled) {
-                scanLine.fillPolygon(poly, SCAN_LINE_COLOR);
+            if (scanLineEnabled) {
+                if (patternEnabled) {
+                    scanLine.fillPolygon(poly, checkerPattern);
+                } else {
+                    scanLine.fillPolygon(poly, SCAN_LINE_COLOR);
+                }
             }
+
             polygonRasterizer.rasterize(poly);
         }
 
@@ -350,22 +364,38 @@ public class Controller {
         }
 
         // Replay saved fill operations
+
         for (FillOperation fill : fills) {
-            if (fill.boundaryMode()) {
-                seedFill.boundaryFill(
-                        fill.seed().x(),
-                        fill.seed().y(),
-                        fill.color(),
-                        0xFFFFFF
-                );
+
+            int x = fill.seed().x();
+            int y = fill.seed().y();
+
+            if (patternEnabled) {
+                // Use checkerboard pattern
+                if (fill.boundaryMode()) {
+                    seedFill.boundaryFill(
+                            x, y, checkerPattern, 0xFFFFFF
+                    );
+                } else {
+                    seedFill.floodFill(
+                            x, y, checkerPattern
+                    );
+                }
+
             } else {
-                seedFill.floodFill(
-                        fill.seed().x(),
-                        fill.seed().y(),
-                        fill.color()
-                );
+                // Use solid green
+                if (fill.boundaryMode()) {
+                    seedFill.boundaryFill(
+                            x, y, fill.color(), 0xFFFFFF
+                    );
+                } else {
+                    seedFill.floodFill(
+                            x, y, fill.color()
+                    );
+                }
             }
         }
+
 
         // Draw the clipped polygon
         if (clippedResult.size() >= 3) {

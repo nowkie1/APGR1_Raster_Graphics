@@ -26,7 +26,7 @@ public class Window extends JFrame {
                 "[L]\u00A0Line | [Shift]\u00A0Snap line | " +
                         "[P]\u00A0Polygon | [Enter]\u00A0Save current polygon | " +
                         "[F]\u00A0Fill polygon | [B]\u00A0Switch filling algorithm " +
-                        "[S]\u00A0Scan-line algorithm | [K]\u00A0Clip polygon | [C]\u00A0Clear"
+                        "[S]\u00A0Scan-line algorithm | [K]\u00A0Clip polygon | [T]\u00A0Toggle pattern | [C]\u00A0Clear"
         );
 
         shortcutsLabel.setLineWrap(true);
@@ -60,7 +60,7 @@ public class Window extends JFrame {
 
         add(statusLabel, BorderLayout.SOUTH);
 
-        updateStatus("LINE", "Flood Fill", false);
+        updateStatus("LINE", "Flood Fill", false, false);
 
         pack();
         setLocationRelativeTo(null);
@@ -73,10 +73,14 @@ public class Window extends JFrame {
 
     public void updateStatus(String mode,
                              String algorithm,
-                             boolean scanLineEnabled) {
+                             boolean scanLineEnabled,
+                             boolean patternEnabled) {
 
         String scanLineColor = scanLineEnabled ? "green" : "red";
         String scanLineText = scanLineEnabled ? "ON" : "OFF";
+
+        String patternColor = patternEnabled ? "green" : "red";
+        String patternText = patternEnabled ? "ON" : "OFF";
 
         statusLabel.setText(
                 "<html>" +
@@ -84,8 +88,10 @@ public class Window extends JFrame {
                         " &nbsp; | &nbsp; Fill: " + algorithm +
                         " &nbsp; | &nbsp; Scan-line: " +
                         "<font color='" + scanLineColor + "'><b>" +
-                        scanLineText +
-                        "</b></font>" +
+                        scanLineText + "</b></font>" +
+                        " &nbsp; | &nbsp; Pattern: " +
+                        "<font color='" + patternColor + "'><b>" +
+                        patternText + "</b></font>" +
                         "</html>"
         );
     }
