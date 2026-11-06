@@ -11,7 +11,14 @@ void main() {
             Window window = new Window();
             window.setVisible(true);
 
-            new Controller(window.getPanel(), window);
+            Controller controller = new Controller(window.getPanel(), window);
+
+            window.setFillColorAction(color -> {
+                controller.setFillColor(color.getRGB() & 0xFFFFFF);
+            });
+            window.setBorderColorAction(color -> {
+                controller.setBorderColor(color.getRGB() & 0xFFFFFF);
+            });
         }
     });
 }

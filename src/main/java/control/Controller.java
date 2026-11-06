@@ -57,6 +57,21 @@ public class Controller {
     private static final int CLIPPED_RESULT_COLOR = 0xFF9500;
     private static final int CLIPPING_BOUNDARY_COLOR = 0xFFFF00;
 
+    private int fillColor = 0x00FF00;
+
+    public void setFillColor(int color) {
+        this.fillColor = color;
+    }
+
+    private int borderColor = 0xFFFFFF;
+
+    public void setBorderColor(int color) {
+        this.borderColor = color;
+
+        redraw();
+        panel.repaint();
+    }
+
     private record FillOperation(
             Point seed,
             int color,
@@ -105,7 +120,7 @@ public class Controller {
                     } else if (mode == Mode.FILL) {
                         fills.add(new FillOperation(
                                 clickedPoint,
-                                SEED_FILL_COLOR,
+                                fillColor,
                                 boundaryMode
                         ));
 
@@ -355,12 +370,12 @@ public class Controller {
                 }
             }
 
-            polygonRasterizer.rasterize(poly);
+            polygonRasterizer.rasterize(poly, borderColor);
         }
 
         // 3. Draw polygon currently in progress
         if (currentPolygon.size() > 0) {
-            polygonRasterizer.rasterize(currentPolygon);
+            polygonRasterizer.rasterize(currentPolygon, borderColor);
         }
 
         // Replay saved fill operations
@@ -374,7 +389,7 @@ public class Controller {
                 // Use checkerboard pattern
                 if (fill.boundaryMode()) {
                     seedFill.boundaryFill(
-                            x, y, checkerPattern, 0xFFFFFF
+                            x, y, checkerPattern, borderColor
                     );
                 } else {
                     seedFill.floodFill(
@@ -386,7 +401,7 @@ public class Controller {
                 // Use solid green
                 if (fill.boundaryMode()) {
                     seedFill.boundaryFill(
-                            x, y, fill.color(), 0xFFFFFF
+                            x, y, fill.color(), borderColor
                     );
                 } else {
                     seedFill.floodFill(

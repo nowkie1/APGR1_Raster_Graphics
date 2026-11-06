@@ -5,11 +5,14 @@ package view;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.function.Consumer;
 
 public class Window extends JFrame {
 
     private final Panel panel;
     private final JLabel statusLabel;
+    private final JButton fillColorButton;
+    private final JButton borderColorButton;
 
     private static final int WIDTH = 800;
     private static final int HEIGHT = 600;
@@ -19,8 +22,15 @@ public class Window extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // TOP: Keyboard shortcuts
+        fillColorButton = new JButton("Fill Color");
+        fillColorButton.setFocusable(false);
 
+        borderColorButton = new JButton("Border Color");
+        borderColorButton.setFocusable(false);
+
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        toolbar.add(fillColorButton);
+        toolbar.add(borderColorButton);
 
         JTextArea shortcutsLabel = new JTextArea(
                 "[L]\u00A0Line | [Shift]\u00A0Snap line | " +
@@ -43,7 +53,13 @@ public class Window extends JFrame {
                 BorderFactory.createEmptyBorder(6, 8, 6, 8)
         );
 
-        add(shortcutsLabel, BorderLayout.NORTH);
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+
+        topPanel.add(shortcutsLabel);
+        topPanel.add(toolbar);
+
+        add(topPanel, BorderLayout.NORTH);
 
 
         // CENTER: Drawing canvas
@@ -66,6 +82,42 @@ public class Window extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
     }
+
+    public void setFillColorAction(Consumer<Color> action) {
+        fillColorButton.addActionListener(e -> {
+            Color selectedColor = JColorChooser.showDialog(
+                    this,
+                    "Choose Fill Color",
+                    Color.GREEN
+            );
+
+            if (selectedColor != null) {
+                action.accept(selectedColor);
+            }
+            panel.requestFocusInWindow();
+        });
+    }
+
+
+    public void setBorderColorAction(Consumer<Color> action) {
+
+        borderColorButton.addActionListener(e -> {
+
+            Color selectedColor = JColorChooser.showDialog(
+                    this,
+                    "Choose Border Color",
+                    Color.WHITE
+            );
+
+            if (selectedColor != null) {
+                action.accept(selectedColor);
+            }
+
+            // Restore keyboard focus
+            panel.requestFocusInWindow();
+        });
+    }
+
 
     public Panel getPanel() {
         return panel;

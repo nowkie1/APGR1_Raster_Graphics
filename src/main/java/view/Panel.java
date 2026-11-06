@@ -13,6 +13,7 @@ public class Panel extends JPanel {
 
     // package-protected constructor
     Panel(int w, int h) {
+        setFocusable(true);
         setPreferredSize(new Dimension(w, h));
         raster = new RasterBI(w, h);
     }
