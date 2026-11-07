@@ -5,7 +5,7 @@ import model.objects.Line;
 import model.objects.Point;
 
 public abstract class Liner {
-    Raster raster;
+    final Raster raster;
     int color;
 
     public Liner(Raster raster) {
@@ -14,11 +14,6 @@ public abstract class Liner {
     }
 
     protected abstract void rasterize(int x1, int y1, int x2, int y2);
-
-    // method overload:
-    public void drawLine(int x1, int y1, int x2, int y2) {
-        rasterize(x1, y1, x2, y2);
-    }
 
     public void drawLine(Point a, Point b) {
         rasterize(a.x(), a.y(), b.x(), b.y());

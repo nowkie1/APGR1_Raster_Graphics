@@ -1,5 +1,9 @@
 package model.raster;
-
+/**
+ * Implements Bresenham's line rasterization algorithm.
+ * Uses integer arithmetic to draw line segments in all eight octants.
+ * X-major and Y-major lines are handled separately.
+ */
 public class BresenhamLiner extends Liner {
 
     public BresenhamLiner(Raster raster) {
@@ -9,28 +13,34 @@ public class BresenhamLiner extends Liner {
     @Override
     protected void rasterize(int x0, int y0, int x1, int y1) {
         if (Math.abs(x1 - x0) > Math.abs(y1 - y0)) {
-            drawLineH(x0, y0, x1, y1);
+            drawXMajorLine(x0, y0, x1, y1);
         } else {
-            drawLineV(x0, y0, x1, y1);
+            drawYMajorLine(x0, y0, x1, y1);
         }
     }
+
     //Method for drawing a horizontal line
-    private void drawLineH(int x0, int y0, int x1, int y1) {
+    private void drawXMajorLine(int x0, int y0, int x1, int y1) {
         // Swap endpoints so the loop always steps forward from the smaller X to the larger X.
         if (x0 > x1) {
-            int tempX = x0; x0 = x1; x1 = tempX;
-            int tempY = y0; y0 = y1; y1 = tempY;
+            int tempX = x0;
+            x0 = x1;
+            x1 = tempX;
+            int tempY = y0;
+            y0 = y1;
+            y1 = tempY;
         }
 
         int dx = x1 - x0;
         int dy = y1 - y0;
 
-        // Save the step direction (-1 or +1) and so we never have negative sign
+        // Determine the vertical direction and use the absolute change in Y.
         int dir = (dy < 0) ? -1 : 1;
         dy *= dir;
 
         int y = y0;
-        int p = 2 * dy - dx; //decision variable: is the true math line closer to the horizontal pixel or diagonal pixel
+        // Decision variable determines when to move to the next row.
+        int p = 2 * dy - dx;
         // Iterate horizontally across all columns from x0 to x1
         for (int i = 0; i <= dx; i++) {
             raster.setPixel(x0 + i, y, color);
@@ -43,11 +53,16 @@ public class BresenhamLiner extends Liner {
             p += 2 * dy;
         }
     }
+
     //Method for drawing a vertical line
-    private void drawLineV(int x0, int y0, int x1, int y1) {
+    private void drawYMajorLine(int x0, int y0, int x1, int y1) {
         if (y0 > y1) {
-            int tempX = x0; x0 = x1; x1 = tempX;
-            int tempY = y0; y0 = y1; y1 = tempY;
+            int tempX = x0;
+            x0 = x1;
+            x1 = tempX;
+            int tempY = y0;
+            y0 = y1;
+            y1 = tempY;
         }
 
         int dx = x1 - x0;

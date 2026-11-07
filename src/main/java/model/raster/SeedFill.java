@@ -1,10 +1,16 @@
-
 package model.raster;
 
 import model.objects.Point;
+
 import java.util.ArrayDeque;
 import java.util.Queue;
-
+/**
+ * Implements queue-based seed filling using four-connected neighbors.
+ * Supports flood fill and boundary fill with either solid colors
+ * or regularly repeating patterns.
+ * Flood fill replaces pixels matching the starting pixel's color,
+ * while boundary fill stops when it reaches the specified border color.
+ */
 public class SeedFill {
 
     private final Raster raster;
@@ -51,8 +57,11 @@ public class SeedFill {
             return;
         }
 
+        // Prevents processing the same pixel multiple times,
+        // including when a pattern contains the original pixel color.
         boolean[][] visited = new boolean[height][width];
 
+        //A queue processes pixels in first-in, first-out order, producing a breadth-first traversal
         Queue<Point> queue = new ArrayDeque<>();
         queue.add(new Point(x, y));
 
@@ -87,6 +96,7 @@ public class SeedFill {
 
             raster.setPixel(px, py, pattern.getColor(px, py));
 
+            // Add the four neighboring pixels: right, left, down, and up.
             queue.add(new Point(px + 1, py));
             queue.add(new Point(px - 1, py));
             queue.add(new Point(px, py + 1));

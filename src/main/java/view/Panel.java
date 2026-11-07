@@ -9,7 +9,7 @@ import java.awt.*;
 
 public class Panel extends JPanel {
 
-    private RasterBI raster;
+    private final RasterBI raster;
 
     // package-protected constructor
     Panel(int w, int h) {

@@ -6,7 +6,7 @@ import java.awt.image.BufferedImage;
 public class RasterBI implements Raster {
 
     private final BufferedImage image;
-    private int clearColor;
+    private final int clearColor;
 
     public RasterBI(int w, int h) {
         image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
@@ -23,10 +23,15 @@ public class RasterBI implements Raster {
 
     }
 
+
     @Override
     public void setPixel(int x, int y, int color) {
-        image.setRGB(x, y, color);
+        if (x >= 0 && x < getWidth()
+                && y >= 0 && y < getHeight()) {
+            image.setRGB(x, y, color);
+        }
     }
+
 
     @Override
     public int getPixel(int x, int y) {

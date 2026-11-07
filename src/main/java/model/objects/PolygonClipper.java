@@ -2,10 +2,14 @@ package model.objects;
 
 import java.util.ArrayList;
 import java.util.List;
-
+/**
+ * Implements the Sutherland-Hodgman polygon clipping algorithm.
+ * Clips a subject polygon against a convex clipping polygon
+ * by processing each clipping edge separately.
+ * Supports clockwise and counterclockwise clipping polygons.
+ */
 public class PolygonClipper {
 
-    //Executes the Sutherland–Hodgman algorithm and returns the clipped polygon
     public Polygon clip(Polygon subject, Polygon clipper) {
 
         if (subject.size() < 3 || clipper.size() < 3) {
@@ -18,6 +22,8 @@ public class PolygonClipper {
             return new Polygon();
         }
 
+        // In screen coordinates (Y increases downward),
+        // a positive signed area indicates clockwise orientation.
         boolean clockwise = area > 0;
 
         // Copy the subject polygon's vertices
@@ -50,6 +56,9 @@ public class PolygonClipper {
                 boolean currentInside =
                         isInside(current, a, b, clockwise);
 
+                // Apply the four Sutherland-Hodgman cases:
+                // inside-inside, inside-outside,
+                // outside-inside, and outside-outside.
                 if (previousInside && currentInside) {
                     output.add(current);
 
@@ -124,7 +133,12 @@ public class PolygonClipper {
         }
     }
 
-    //Calculates the intersection between two lines
+    /**
+     * Calculates where a subject polygon edge intersects
+     * the infinite line containing a clipping edge.
+     * Uses linear interpolation and rounds the result
+     * to integer raster coordinates.
+     */
     private Point intersection(
             Point previous,
             Point current,

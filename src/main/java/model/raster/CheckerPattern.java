@@ -1,6 +1,6 @@
 package model.raster;
 
-public class CheckerPattern implements PatternFill{
+public class CheckerPattern implements PatternFill {
 
     private final int color1;
     private final int color2;
