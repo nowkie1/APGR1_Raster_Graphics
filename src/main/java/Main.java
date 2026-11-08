@@ -8,7 +8,6 @@ import javax.swing.*;
 void main() {
     SwingUtilities.invokeLater(() -> {
         Window window = new Window();
-        window.setVisible(true);
 
         Controller controller = new Controller(window.getPanel(), window);
 

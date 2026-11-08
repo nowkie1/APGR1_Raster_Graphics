@@ -10,6 +10,10 @@ public class Polygon {
         polygon = new ArrayList<>();
     }
 
+    public void set(int index, Point point) {
+        polygon.set(index, point);
+    }
+
     public void add(Point p) {
         polygon.add(p);
     }
@@ -20,6 +24,10 @@ public class Polygon {
 
     public Point get(int index) {
         return polygon.get(index);
+    }
+
+    public void remove(int index) {
+        polygon.remove(index);
     }
 
 }

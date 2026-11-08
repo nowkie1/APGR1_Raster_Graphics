@@ -61,7 +61,8 @@ public class SeedFill {
         // including when a pattern contains the original pixel color.
         boolean[][] visited = new boolean[height][width];
 
-        //A queue processes pixels in first-in, first-out order, producing a breadth-first traversal
+        // A queue processes pixels in first-in, first-out order,
+        // producing a breadth-first traversal
         Queue<Point> queue = new ArrayDeque<>();
         queue.add(new Point(x, y));
 

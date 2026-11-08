@@ -25,7 +25,7 @@ public class Controller {
 
     // Drawing modes
     private enum Mode {
-        LINE, POLYGON, FILL, CLIPPING
+        LINE, POLYGON, FILL, CLIPPING, EDIT
     }
 
     // Drawing components
@@ -57,6 +57,11 @@ public class Controller {
     private boolean scanLineEnabled = false;
     private boolean patternEnabled = false;
 
+    private int selectedLineIndex = -1;
+    private boolean editingFirstEndpoint = false;
+    private int selectedPolygonIndex = -1;
+    private int selectedVertexIndex = -1;
+
     // User-selected colors
     private int fillColor = 0x00FF00;
     private int borderColor = 0xFFFFFF;
@@ -65,6 +70,13 @@ public class Controller {
     private static final int SCAN_LINE_COLOR = 0x00BFFF;
     private static final int CLIPPED_RESULT_COLOR = 0xFF9500;
     private static final int CLIPPING_BOUNDARY_COLOR = 0xFFFF00;
+    private static final int SELECTED_POLYGON_COLOR = 0xFF9500;
+
+    // Editing selection and markers
+    private static final int ENDPOINT_MARKER_COLOR = 0xFF4D4D;
+    private static final int SELECTED_ENDPOINT_MARKER_COLOR = 0xFFD700;
+    private static final int ENDPOINT_MARKER_RADIUS = 5;
+    private static final int SELECTION_RADIUS = 10;
 
     // Repeating fill pattern
     private final PatternFill checkerPattern =
@@ -140,6 +152,26 @@ public class Controller {
     }
 
     private void handleMousePressed(MouseEvent e) {
+        if (mode == Mode.EDIT) {
+            Point mousePoint = new Point(e.getX(), e.getY());
+            selectLineEndpoint(mousePoint);
+
+            if (selectedLineIndex == -1) {
+                selectPolygonVertex(mousePoint);
+
+                if (selectedPolygonIndex == -1) {
+                    selectPolygonBody(mousePoint);
+                }
+            } else {
+                selectedPolygonIndex = -1;
+                selectedVertexIndex = -1;
+            }
+
+            redraw();
+            panel.repaint();
+            return;
+        }
+
         if (SwingUtilities.isRightMouseButton(e)) {
             hardClear();
             return;
@@ -172,6 +204,41 @@ public class Controller {
     }
 
     private void handleMouseDragged(MouseEvent e) {
+        if (mode == Mode.EDIT) {
+            // Edit a line endpoint
+            if (selectedLineIndex != -1) {
+                Line line = lines.get(selectedLineIndex);
+                Point newPoint = new Point(e.getX(), e.getY());
+
+                if (editingFirstEndpoint) {
+                    lines.set(selectedLineIndex,
+                            new Line(newPoint, line.p2()));
+                } else {
+                    lines.set(selectedLineIndex,
+                            new Line(line.p1(), newPoint));
+                }
+
+                redraw();
+                panel.repaint();
+            }
+            // Edit a polygon vertex
+            else if (selectedPolygonIndex != -1 && selectedVertexIndex != -1) {
+                Polygon polygon = polygons.get(selectedPolygonIndex);
+                Point newPoint = new Point(e.getX(), e.getY());
+
+                // Existing seed fills may no longer be valid
+                // after changing the polygon geometry.
+                fills.clear();
+                invalidateClippingResults();
+
+                polygon.set(selectedVertexIndex, newPoint);
+
+                redraw();
+                panel.repaint();
+            }
+            return;
+        }
+
         if (mode == Mode.LINE && startPoint != null && SwingUtilities.isLeftMouseButton(e)) {
             redraw();
             Point endPoint = new Point(e.getX(), e.getY());
@@ -186,6 +253,13 @@ public class Controller {
     }
 
     private void handleMouseReleased(MouseEvent e) {
+        if (mode == Mode.EDIT) {
+            selectedLineIndex = -1;
+
+            redraw();
+            panel.repaint();
+            return;
+        }
         if (mode == Mode.LINE && startPoint != null && SwingUtilities.isLeftMouseButton(e)) {
             Point endPoint = new Point(e.getX(), e.getY());
             if (e.isShiftDown()) {
@@ -246,16 +320,260 @@ public class Controller {
         return diagonalPoint;
     }
 
+
+    private void selectLineEndpoint(Point mousePoint) {
+        selectedLineIndex = -1;
+
+        double closestDistance = SELECTION_RADIUS;
+
+        for (int i = 0; i < lines.size(); i++) {
+            Line line = lines.get(i);
+
+            double distanceToFirst = Math.hypot(
+                    mousePoint.x() - line.p1().x(),
+                    mousePoint.y() - line.p1().y()
+            );
+
+            double distanceToSecond = Math.hypot(
+                    mousePoint.x() - line.p2().x(),
+                    mousePoint.y() - line.p2().y()
+            );
+
+            if (distanceToFirst <= closestDistance) {
+                closestDistance = distanceToFirst;
+                selectedLineIndex = i;
+                editingFirstEndpoint = true;
+            }
+
+            if (distanceToSecond <= closestDistance) {
+                closestDistance = distanceToSecond;
+                selectedLineIndex = i;
+                editingFirstEndpoint = false;
+            }
+        }
+    }
+
+    private void drawLineEndpointMarkers() {
+        if (mode != Mode.EDIT) {
+            return;
+        }
+
+        for (int i = 0; i < lines.size(); i++) {
+            Line line = lines.get(i);
+
+            int firstColor = ENDPOINT_MARKER_COLOR;
+            int secondColor = ENDPOINT_MARKER_COLOR;
+
+            if (i == selectedLineIndex) {
+                if (editingFirstEndpoint) {
+                    firstColor = SELECTED_ENDPOINT_MARKER_COLOR;
+                } else {
+                    secondColor = SELECTED_ENDPOINT_MARKER_COLOR;
+                }
+            }
+
+            drawEndpointMarker(line.p1(), firstColor);
+            drawEndpointMarker(line.p2(), secondColor);
+        }
+    }
+
+
+    private void selectPolygonVertex(Point mousePoint) {
+        selectedPolygonIndex = -1;
+        selectedVertexIndex = -1;
+
+        double closestDistance = SELECTION_RADIUS;
+
+        for (int i = 0; i < polygons.size(); i++) {
+            Polygon polygon = polygons.get(i);
+
+            for (int j = 0; j < polygon.size(); j++) {
+                Point vertex = polygon.get(j);
+
+                double distance = Math.hypot(
+                        mousePoint.x() - vertex.x(),
+                        mousePoint.y() - vertex.y()
+                );
+
+                if (distance <= closestDistance) {
+                    closestDistance = distance;
+                    selectedPolygonIndex = i;
+                    selectedVertexIndex = j;
+                }
+            }
+        }
+    }
+
+
+    private void drawPolygonVertexMarkers() {
+        if (mode != Mode.EDIT) {
+            return;
+        }
+
+        for (int i = 0; i < polygons.size(); i++) {
+            Polygon polygon = polygons.get(i);
+
+            for (int j = 0; j < polygon.size(); j++) {
+                Point vertex = polygon.get(j);
+
+                int color = ENDPOINT_MARKER_COLOR;
+
+                if (i == selectedPolygonIndex &&
+                        j == selectedVertexIndex) {
+                    color = SELECTED_ENDPOINT_MARKER_COLOR;
+                }
+
+                drawEndpointMarker(vertex, color);
+            }
+        }
+    }
+
+    private void drawEndpointMarker(Point point, int color) {
+        for (int dy = -ENDPOINT_MARKER_RADIUS; dy <= ENDPOINT_MARKER_RADIUS; dy++) {
+            for (int dx = -ENDPOINT_MARKER_RADIUS; dx <= ENDPOINT_MARKER_RADIUS; dx++) {
+
+                if (dx * dx + dy * dy <= ENDPOINT_MARKER_RADIUS * ENDPOINT_MARKER_RADIUS) {
+                    panel.getRaster().setPixel(
+                            point.x() + dx,
+                            point.y() + dy,
+                            color
+                    );
+                }
+            }
+        }
+    }
+
+    private void deleteSelectedPolygonVertex() {
+
+        // Make sure a polygon vertex is selected.
+        if (selectedPolygonIndex == -1 || selectedVertexIndex == -1) {
+            return;
+        }
+
+        Polygon polygon = polygons.get(selectedPolygonIndex);
+
+        // A polygon must contain at least three vertices.
+        if (polygon.size() <= 3) {
+            JOptionPane.showMessageDialog(
+                    window,
+                    "Cannot delete vertex: polygon must have at least 3 vertices."
+            );
+            return;
+        }
+
+        // Remove the selected vertex.
+        polygon.remove(selectedVertexIndex);
+
+        // Old seed-fill operations may no longer be valid.
+        fills.clear();
+        invalidateClippingResults();
+
+        // Reset selection.
+        selectedPolygonIndex = -1;
+        selectedVertexIndex = -1;
+
+        redraw();
+        panel.repaint();
+    }
+    /**
+     * Determines whether a point is inside a polygon using ray casting.
+     * A horizontal ray is cast from the point, and intersections
+     * with polygon edges are counted using the even-odd rule.
+     * @param point   Point to test
+     * @param polygon Polygon whose interior is being tested
+     * @return true if the point lies inside the polygon
+     */
+    private boolean isPointInsidePolygon(Point point, Polygon polygon) {
+        boolean inside = false;
+
+        for (int i = 0, j = polygon.size() - 1;
+             i < polygon.size();
+             j = i++) {
+
+            Point a = polygon.get(i);
+            Point b = polygon.get(j);
+
+            boolean intersects =
+                    (a.y() > point.y()) != (b.y() > point.y())
+                            && point.x() <
+                            (double) (b.x() - a.x())
+                                    * (point.y() - a.y())
+                                    / (b.y() - a.y()) + a.x();
+
+            if (intersects) {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    }
+
+    private void selectPolygonBody(Point mousePoint) {
+        selectedPolygonIndex = -1;
+        selectedVertexIndex = -1;
+
+        // Check the most recently drawn polygons first.
+        for (int i = polygons.size() - 1; i >= 0; i--) {
+            if (isPointInsidePolygon(mousePoint, polygons.get(i))) {
+                selectedPolygonIndex = i;
+                return;
+            }
+        }
+    }
+
+    private void deleteSelectedPolygon() {
+        if (selectedPolygonIndex == -1) {
+            return;
+        }
+
+        polygons.remove(selectedPolygonIndex);
+
+        // Existing seed fills may no longer be valid.
+        fills.clear();
+
+        // Previously calculated clipping results may be outdated.
+        invalidateClippingResults();
+
+        selectedPolygonIndex = -1;
+        selectedVertexIndex = -1;
+
+        redraw();
+        panel.repaint();
+    }
+
+    private void drawSelectedPolygonHighlight() {
+        if (mode != Mode.EDIT || selectedPolygonIndex < 0
+                || selectedPolygonIndex >= polygons.size()) {
+            return;
+        }
+
+        Polygon selectedPolygon = polygons.get(selectedPolygonIndex);
+
+        polygonRasterizer.rasterize(
+                selectedPolygon,
+                SELECTED_POLYGON_COLOR
+        );
+    }
+
+    private void invalidateClippingResults() {
+        clippedResult = new Polygon();
+        clippingBoundary = new Polygon();
+    }
+
     private void handleKeyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
             case KeyEvent.VK_L:
                 mode = Mode.LINE;
                 updateStatus();
+                redraw();
+                panel.repaint();
                 break;
 
             case KeyEvent.VK_P:
                 mode = Mode.POLYGON;
                 updateStatus();
+                redraw();
+                panel.repaint();
                 break;
 
 
@@ -294,15 +612,15 @@ public class Controller {
 
                     currentClipPolygon = new Polygon();
                 }
-
                 redraw();
                 panel.repaint();
                 break;
 
-
             case KeyEvent.VK_F:
                 mode = Mode.FILL;
                 updateStatus();
+                redraw();
+                panel.repaint();
                 break;
 
             case KeyEvent.VK_B:
@@ -330,6 +648,25 @@ public class Controller {
                 updateStatus();
                 redraw();
                 panel.repaint();
+                break;
+
+            case KeyEvent.VK_E:
+                mode = Mode.EDIT;
+                updateStatus();
+                redraw();
+                panel.repaint();
+                break;
+
+            case KeyEvent.VK_D:
+                if (mode == Mode.EDIT) {
+                    if (selectedPolygonIndex != -1) {
+                        if (selectedVertexIndex != -1) {
+                            deleteSelectedPolygonVertex();
+                        } else {
+                            deleteSelectedPolygon();
+                        }
+                    }
+                }
                 break;
 
             case KeyEvent.VK_C:
@@ -385,15 +722,15 @@ public class Controller {
 
     private void redraw() {
         panel.getRaster().clear();
-
-        // Draw saved lines
         drawSavedLines();
-        // Draw saved polygons
         drawSavedPolygons();
-        // Replay saved fill operations
+
         replayFillOperations();
-        // Draw the clipped polygon
+
         drawClippingPolygons();
+        drawSelectedPolygonHighlight();
+        drawLineEndpointMarkers();
+        drawPolygonVertexMarkers();
     }
 
     private void drawClippingPolygons() {
@@ -456,10 +793,11 @@ public class Controller {
                 }
             }
 
+            // Always draw the actual polygon border color.
             polygonRasterizer.rasterize(poly, borderColor);
         }
 
-        // Draw polygon currently in progress
+        // Draw the polygon currently being created.
         if (currentPolygon.size() > 0) {
             polygonRasterizer.rasterize(currentPolygon, borderColor);
         }
@@ -475,12 +813,18 @@ public class Controller {
         lines.clear();
         polygons.clear();
         fills.clear();
+
         currentPolygon = new Polygon();
         startPoint = null;
 
         currentClipPolygon = new Polygon();
         clippingBoundary = new Polygon();
         clippedResult = new Polygon();
+
+        selectedLineIndex = -1;
+        selectedPolygonIndex = -1;
+        selectedVertexIndex = -1;
+        editingFirstEndpoint = false;
 
         panel.getRaster().clear();
         panel.repaint();
